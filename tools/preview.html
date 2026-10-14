@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>奶蛙大战奶龙 · 场景预览</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #121e27; color: #eaf6ff; font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  #wrap { padding: 16px 20px 32px; }
+  h1 { font-size: 17px; margin: 0 0 4px; font-weight: 700; }
+  p.hint { margin: 0 0 14px; font-size: 13px; color: #90a9ba; line-height: 1.6; }
+  code { background: #1d2f3c; padding: 1px 5px; border-radius: 4px; }
+  #bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  button {
+    padding: 8px 14px; border-radius: 8px; border: 1px solid #33506380; background: #1b2c38;
+    color: #d7e8f4; cursor: pointer; font-size: 14px; font-family: inherit;
+  }
+  button:hover { border-color: #4f7c96; }
+  button.on { background: #3fa9e0; border-color: #3fa9e0; color: #05222f; font-weight: 700; }
+  #c { display: block; width: min(1280px, 100%); height: auto; border-radius: 12px; background: #8ec9f0; box-shadow: 0 14px 40px #0008; }
+  #err { margin-top: 12px; color: #ff9d9d; font-size: 13px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>奶蛙大战奶龙 · 场景预览</h1>
+  <p class="hint">
+    不玩整局、直接看任意场景的渲染效果，用来美术调试和回归检查。<br />
+    所有画面都走正式渲染管线 <code>src/render/draw.js</code>；也可以用 <code>?scene=win</code> 直接打开某个场景，方便截图对比。
+  </p>
+  <div id="bar"></div>
+  <canvas id="c" width="1280" height="800" aria-label="场景预览画布"></canvas>
+  <div id="err"></div>
+</div>
+
+<script type="module">
+import { createState, placePlant, addDragon } from '../src/core/state.js';
+import { update } from '../src/core/update.js';
+import { LEVELS } from '../src/core/level.js';
+import { setPhase, setWeather } from '../src/core/weather.js';
+import { AFFIX_ORDER } from '../src/core/config.js';
+import { render } from '../src/render/draw.js';
+
+const ctx = document.getElementById('c').getContext('2d');
+const bar = document.getElementById('bar');
+const errBox = document.getElementById('err');
+
+const view = (extra = {}) => ({
+  screen: 'playing',
+  levelIndex: 0,
+  time: 12,
+  hover: null,
+  drag: { active: false, x: 0, y: 0, key: null, moved: false },
+  sound: true,
+  toast: { text: '', t: 0 },
+  best: 0,
+  ...extra,
+});
+
+/** 无限奶，方便随手摆阵 */
+function plant(state, key, row, col) {
+  state.milk = 99999;
+  return placePlant(state, key, row, col);
+}
+
+/** 用正式模拟推进若干秒，让画面里的单位进入自然状态（有子弹、有啃咬） */
+function advance(state, seconds) {
+  const steps = Math.round(seconds * 60);
+  for (let i = 0; i < steps; i++) update(state, 1 / 60);
+  return state;
+}
+
+/** 把一批奶龙摆到草坪右半边，方便一次看全所有造型 */
+function lineUp(state, specs, x = 1150) {
+  specs.forEach(([type, row, hpScale = 1, speedScale = 1, offset = 0]) => {
+    const d = addDragon(state, type, row, hpScale, speedScale);
+    d.x = x - offset;
+  });
+  return state;
+}
+
+const SCENES = {
+  '菜单': () => [createState(0), view({ screen: 'menu' })],
+
+  '第1关 · 白天对局': () => {
+    const s = createState(0);
+    for (let c = 0; c < 3; c++) plant(s, 'mom', 0, c);
+    for (let r = 0; r < 5; r++) plant(s, 'shooter', r, 2);
+    plant(s, 'ice', 1, 2);
+    plant(s, 'repeater', 3, 2);
+    plant(s, 'triple', 4, 2);
+    plant(s, 'wall', 2, 4);
+    lineUp(s, [['baby', 0], ['armor', 1], ['cone', 2], ['fast', 3], ['boss', 4, 1, 1]], 1200);
+    s.milk = 425;
+    advance(s, 6);
+    return [s, view({ levelIndex: 0 })];
+  },
+
+  '第2关 · 黄昏': () => {
+    const s = createState(1);
+    for (let c = 0; c < 3; c++) for (let r = 0; r < 5; r++) plant(s, r % 2 ? 'shooter' : 'mom', r, c);
+    lineUp(s, [['armor', 0], ['cone', 1], ['fast', 2], ['boss', 3, 1.1, 1]], 1180);
+    s.milk = 300;
+    advance(s, 6);
+    return [s, view({ levelIndex: 1 })];
+  },
+
+  '第3关 · 夜晚无尽': () => {
+    const s = createState(2);
+    for (let c = 0; c < 3; c++) for (let r = 0; r < 5; r++) plant(s, r % 3 === 0 ? 'mom' : 'shooter', r, c);
+    lineUp(s, [['cone', 0], ['boss', 2, 1.2, 1], ['fast', 4]], 1180);
+    s.waveIndex = 11;
+    s.milk = 850;
+    advance(s, 5);
+    return [s, view({ levelIndex: 2 })];
+  },
+
+  '暂停': () => {
+    const s = createState(0);
+    plant(s, 'mom', 2, 0);
+    plant(s, 'shooter', 2, 1);
+    s.milk = 175;
+    advance(s, 3);
+    s.paused = true;
+    return [s, view({ levelIndex: 0 })];
+  },
+
+  '胜利结算': () => {
+    const s = createState(0);
+    for (let c = 0; c < 3; c++) for (let r = 0; r < 5; r++) plant(s, r % 2 ? 'shooter' : 'mom', r, c);
+    advance(s, 30);
+    s.waveIndex = LEVELS[0].waves.length - 1;
+    s.wavesCleared = LEVELS[0].waves.length;
+    s.result = 'win';
+    return [s, view({ levelIndex: 0 })];
+  },
+
+  '失败结算': () => {
+    const s = createState(0);
+    advance(s, 40);
+    s.waveIndex = 3;
+    s.result = 'lose';
+    return [s, view({ levelIndex: 0 })];
+  },
+
+  // ---------------------------------------------------------- 原创机制
+  '夜晚 · 无尽对局': () => {
+    const s = createState(2);
+    for (let c = 0; c < 3; c++) for (let r = 0; r < 5; r++) plant(s, r % 3 === 0 ? 'mom' : 'shooter', r, c);
+    plant(s, 'ice', 2, 3);
+    lineUp(s, [['cone', 0], ['fast', 1], ['armor', 3]], 1180);
+    s.waveIndex = 9;
+    s.milk = 640;
+    advance(s, 4);
+    return [s, view({ levelIndex: 2 })];
+  },
+
+  '天气 · 奶雨': () => {
+    const s = createState(0);
+    for (let c = 0; c < 3; c++) for (let r = 0; r < 5; r++) plant(s, r % 2 ? 'shooter' : 'mom', r, c);
+    lineUp(s, [['baby', 0], ['cone', 1], ['fast', 2], ['armor', 3]], 1180);
+    setWeather(s, 'rain');
+    s.milk = 380;
+    advance(s, 4);
+    return [s, view({ levelIndex: 0 })];
+  },
+
+  '天气 · 浓雾': () => {
+    const s = createState(1);
+    for (let c = 0; c < 4; c++) for (let r = 0; r < 5; r++) plant(s, r % 2 ? 'shooter' : 'mom', r, c);
+    lineUp(s, [['baby', 0], ['cone', 2], ['armor', 4]], 1240);
+    setPhase(s, 'dusk');
+    setWeather(s, 'fog');
+    s.milk = 260;
+    advance(s, 4);
+    return [s, view({ levelIndex: 1 })];
+  },
+
+  '天气 · 狂风': () => {
+    const s = createState(0);
+    for (let c = 0; c < 3; c++) for (let r = 0; r < 5; r++) plant(s, r % 2 ? 'shooter' : 'mom', r, c);
+    lineUp(s, [['fast', 0], ['fast', 1], ['cone', 3]], 1200);
+    setPhase(s, 'noon');
+    setWeather(s, 'wind');
+    s.milk = 300;
+    advance(s, 4);
+    return [s, view({ levelIndex: 0 })];
+  },
+
+  '精英奶龙 · 五种词缀': () => {
+    const s = createState(1);
+    for (let c = 0; c < 3; c++) for (let r = 0; r < 5; r++) plant(s, r % 2 ? 'shooter' : 'mom', r, c);
+    setPhase(s, 'dusk');
+    s.waveIndex = 5;
+    s.waveTimer = 9999;
+    AFFIX_ORDER.forEach((affix, row) => {
+      const d = addDragon(s, affix === 'swift' ? 'fast' : 'cone', row, 1, 1, { affix, x: 1130 + row * 10, scored: false });
+      if (affix === 'berserk') d.hp = d.maxHp * 0.24;
+      if (affix === 'leech') d.leechT = 0.2;
+      if (affix === 'shield') d.shield = d.shieldMax * 0.5;
+    });
+    s.milk = 420;
+    advance(s, 2.2);
+    return [s, view({ levelIndex: 1 })];
+  },
+
+  '奶龙合体 · 多头形态': () => {
+    const s = createState(1);
+    for (let c = 0; c < 3; c++) plant(s, 'shooter', 1, c);
+    plant(s, 'shooter', 4, 0);
+    setPhase(s, 'night');
+    s.waveIndex = 8;
+    s.waveTimer = 9999;
+
+    // 一行合体一次 → 双头；再合体一次 → 三头
+    const fuseTimes = (row, times) => {
+      for (let k = 0; k < times; k++) {
+        const front = s.dragons.filter((d) => d.row === row && !d.dead).sort((a, b) => a.x - b.x)[0];
+        const base = front ? front.x : 1120;
+        addDragon(s, 'cone', row, 1, 1, { x: base + 14 });
+        addDragon(s, 'cone', row, 1, 1, { x: base + 50 });
+        s.waveFused = 0;
+        for (let i = 0; i < 150; i++) update(s, 1 / 60);
+      }
+    };
+    fuseTimes(0, 1);
+    fuseTimes(2, 2);
+    addDragon(s, 'cone', 4, 1, 1, { x: 1120 });
+    s.dragons.forEach((d) => {
+      d.hp = Math.max(1, Math.round(d.maxHp * 0.72));
+    });
+    s.milk = 500;
+    advance(s, 1.4);
+    return [s, view({ levelIndex: 1 })];
+  },
+};
+
+function show(name) {
+  if (!SCENES[name]) return false;
+  const [state, v] = SCENES[name]();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, 1280, 800);
+  render(ctx, state, v);
+  for (const b of bar.children) b.classList.toggle('on', b.textContent === name);
+  document.title = `预览：${name}`;
+  history.replaceState(null, '', `?scene=${encodeURIComponent(name)}`);
+  return true;
+}
+
+for (const name of Object.keys(SCENES)) {
+  const b = document.createElement('button');
+  b.textContent = name;
+  b.addEventListener('click', () => show(name));
+  bar.appendChild(b);
+}
+
+window.__scenes = SCENES;
+window.__show = show;
+
+const wanted = new URLSearchParams(location.search).get('scene');
+try {
+  if (!show(wanted && SCENES[wanted] ? wanted : '菜单')) show('菜单');
+} catch (err) {
+  errBox.textContent = `场景渲染失败：${err.stack || err}`;
+  document.title = '预览：渲染失败';
+}
+</script>
+</body>
+</html>

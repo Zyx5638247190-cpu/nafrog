@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>奶蛙大战奶龙 · 网页塔防小游戏（手机电脑都能玩）</title>
+<meta name="description" content="参考《植物大战僵尸》的横版塔防游戏：奶蛙守住草坪，奶龙一波波冲过来。含奶蛙合成升级、奶怒大招「奶浪」、昼夜天气、精英词缀、奶龙合体、每日挑战等原创玩法。手机、平板、电脑打开即玩，装到桌面可离线开局。" />
+<meta name="theme-color" content="#5aa843" />
+<meta name="color-scheme" content="dark" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="奶蛙大战奶龙" />
+<meta name="format-detection" content="telephone=no" />
+
+<!-- 分享卡片 -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="奶蛙大战奶龙 · 网页塔防小游戏" />
+<meta property="og:description" content="奶蛙守住草坪，奶龙一波波冲过来。合成升级、奶怒大招、特殊地块，手机电脑打开即玩。" />
+<meta property="og:image" content="./icons/icon-512.png" />
+<meta property="og:locale" content="zh_CN" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="奶蛙大战奶龙 · 网页塔防小游戏" />
+<meta name="twitter:description" content="奶蛙守住草坪，奶龙一波波冲过来。手机电脑打开即玩。" />
+<meta name="twitter:image" content="./icons/icon-512.png" />
+
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>%F0%9F%8D%BC</text></svg>" />
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game" width="1280" height="800" aria-label="奶蛙大战奶龙 游戏画面"></canvas>
+  </div>
+
+  <!-- 竖屏提示：手机上横过来玩得更舒服 -->
+  <div id="rotate-hint">
+    <div class="rotate-card">
+      <div class="rotate-icon">📱↻</div>
+      <h1>把手机横过来玩 🐸🐉</h1>
+      <p>奶蛙大战奶龙是横版塔防，横屏才能看全整条草坪。</p>
+      <button id="rotate-go" type="button">全屏横屏开始</button>
+      <button id="rotate-skip" type="button" class="ghost">就这么玩（画面会很小）</button>
+    </div>
+  </div>
+
+  <!-- 底部工具条：不会挡住草坪，手机上也能点到 -->
+  <div id="tools">
+    <span id="seed-note">随机地图 · 每局都不一样</span>
+    <span class="tools-spacer"></span>
+    <button id="btn-share" type="button" title="复制链接，发给朋友就是同一局">复制本局链接</button>
+    <button id="btn-daily" type="button" title="用当天日期当种子，全世界同一局">每日挑战</button>
+    <button id="btn-install" type="button" hidden>装到桌面</button>
+    <button id="btn-fullscreen" type="button">全屏</button>
+  </div>
+
+  <script>
+    // 开发用：把加载期错误收集起来，方便排查
+    window.__errors = [];
+    window.addEventListener('error', (e) => window.__errors.push(String(e.message || e.error)));
+    window.addEventListener('unhandledrejection', (e) => window.__errors.push('unhandled: ' + e.reason));
+  </script>
+
+  <script type="module">
+    import { boot } from './src/app/main.js';
+    import { installPageHelpers } from './src/app/shell.js';
+
+    const game = boot(document.getElementById('game'));
+    installPageHelpers(game);
+  </script>
+</body>
+</html>

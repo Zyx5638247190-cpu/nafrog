@@ -1,0 +1,60 @@
+name: 发布到 GitHub Pages
+
+# 把游戏作为静态网站发布。
+# 第一次用：仓库 Settings → Pages → Build and deployment → Source 选 "GitHub Actions"，
+# 之后 push 到 main，Actions 跑完就能在 https://<你的用户名>.github.io/<仓库名>/ 打开。
+#
+# 注意：这里只把「网站需要的文件」复制到 dist/ 再发布，
+# 不会把 .git、README、package.json、node_modules 之类的东西一起传上去
+# （tools/ 会一起发布，这样线上也能打开 tools/preview.html 看渲染）。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 数值改了、模块加漏了，先让自测拦住（同时也会检查离线清单是否完整）
+      - name: 跑无头自测
+        run: node tools/selftest.mjs
+
+      - name: 整理要发布的文件
+        run: |
+          mkdir -p dist
+          cp index.html styles.css manifest.webmanifest sw.js .nojekyll dist/
+          cp -r icons src tools dist/
+
+      - uses: actions/configure-pages@v5
+
+      - name: 打包静态站点
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

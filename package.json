@@ -1,0 +1,16 @@
+{
+  "name": "nafrog",
+  "version": "1.0.0",
+  "private": true,
+  "description": "奶蛙大战奶龙 — a Plants vs. Zombies style lane-defense game with milk frogs and milk dragons.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
+    "test": "node tools/selftest.mjs",
+    "sim": "node tools/simulate.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

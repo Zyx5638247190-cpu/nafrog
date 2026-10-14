@@ -1,0 +1,7 @@
+# 部署时不上传本地开发/缓存产物
+.npm-cache
+.git
+.github
+tools
+server.mjs
+start.cmd
